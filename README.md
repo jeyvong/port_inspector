@@ -1,47 +1,69 @@
-# port_inspector
-Скрипт для инвентаризации портов,  который обогащает вывод sh int status на коммутаторах доступа
+Port Inspector
+Скрипт для инвентаризации портов на коммутаторах доступа Cisco, который обогащает вывод команды show interfaces status дополнительными данными о подключенных устройствах. Инструмент автоматизирует сбор информации о VLAN, MAC-адресах, IP-адресах, System Name и Port Description, используя протоколы LLDP/CDP и ARP-таблицу на core-устройстве.
 
-1. Скрипт работает только с Cisco CLI
-2. В работу берутся все порты из вывода sh int status в состояние enabled. Это значит что аплинк-порты тоже попадают в обработку.
-3. Значение вланов забирается из вывода show mac address-table interface <port> каждого порта
-4. Из sh int desc забирается Port Description
-5. Для каждого порта запрашивается sh lldp nei <port> detail, sh lldp nei <port> detail забирается MAC, IP, System name
-6. Если для порта вывод lldp и cdp пустой, то запрашивается мак адрес из вывода  show mac address-table interface <port>,
-затем скрипт заходит по ssh на ядро (роутер), в общем где есть таблица ARP (адрес ядра указываете в конфиге) и запрашивает команду show ip arp | <[mac_address]> что бы узнать ip хоста на порту.
+Требования
 
+Скрипт работает только с Cisco CLI (IOS/IOS-XE).
+Поддерживает порты в состоянии "enabled" (connected) из вывода show interfaces status. Это включает как порты доступа, так и аплинки (если не исключены в конфиге).
+Для работы требуется Python 3.x с библиотеками: netmiko, prettytable.
+Учетные данные и конфигурация хранятся в JSON-файлах (см. ниже).
 
-В файл настроек \port_inspector\config\switch_config.json 
+Как работает скрипт
+
+Сбор портов: Берутся все порты в состоянии "connected" из вывода show interfaces status. Апплинки тоже обрабатываются, если не исключены.
+VLAN: Значение VLAN забирается из вывода show mac address-table interface <port> для каждого порта.
+Port Description: Извлекается из show interfaces description.
+LLDP/CDP: Для каждого порта запрашивается show lldp neighbors <port> detail или show cdp neighbors <port> detail. Из них извлекаются MAC, IP и System Name.
+Fallback на MAC и ARP: Если LLDP/CDP пустые, извлекается MAC из show mac address-table interface <port>. Затем скрипт подключается по SSH к core-устройству (ядро/роутер с ARP-таблицей) и запрашивает show ip arp | include <mac_address> для получения IP хоста.
+Исключения: В конфиге можно указать порты для исключения (например, аплинки с сотнями MAC), чтобы избежать лишних запросов. Укажите имя порта из show interfaces status или имя PortChannel.
+
+Конфигурация
+switch_config.json
+Файл с настройками устройства и исключениями:
 {
   "access_switch": "192.168.1.10",
   "core_switch": "192.168.1.1",
   "hostname": "-",
   "commands": [
-  "show mac address-table",
-  "show lldp neighbors detail",
-  "show cdp neighbors detail",
-  "show interfaces status",
-  "show interfaces description"
+    "show mac address-table",
+    "show lldp neighbors detail",
+    "show cdp neighbors detail",
+    "show interfaces status",
+    "show interfaces description"
   ],
-  "excluded_ports": ["Po1","Te1/1/1","Te2/1/1"]
+  "excluded_ports": ["Po1", "Te1/1/1", "Te2/1/1"]
 }
 
-"access_switch" - целевой коммутатор доступа, роутеры не подходят.
-"core_switch" - ядро (роутер), в общем где есть таблица ARP
 
-"excluded_ports"
-В настройки можно внести порт исключения, это нужно для, того что бы не запрашивать ip для каждого мак адреса за портом, если это порт аплинка и за ним в таблице mac сотни адресов.
-Хотя иногда бывает полезно посмотреть что там, если нет доступа до устройства за аплинком.
-В исключение нужно вносить имя порта из вывода sh int status, так и имя port channel порта в котором он учавствует.
+access_switch: IP целевого коммутатора доступа (не роутер).
+core_switch: IP ядра/роутера с ARP-таблицей.
+excluded_ports: Список портов для исключения (имена из show interfaces status, включая PortChannel, если применимо). Полезно для аплинков с большим количеством MAC.
 
-
-В файл аккаунта \port_inspector\config\credentials.json 
+credentials.json
+Файл с учетными данными (пароль и secret запрашиваются при запуске):
 {
   "device_type": "cisco_ios",
   "username": "admin"
 }
 
-логин используется для доступа по ssh как к access_switch так и к core_switch, введение разных логинов не предусмотрено.
 
-Пароль запрашивается при запуске скрипта в командной строке по структуре запуска
+Логин используется для SSH-доступа как к access_switch, так и к core_switch. Разные логины не поддерживаются.
+
+Запуск
+
+Установите зависимости: pip install -r requirements.txt.
+Запустите скрипт: python main.py.
+Введите пароль и enable secret при запросе.
+Результат: Таблица в консоли + CSV-файл с именем <hostname>_<date_time>.csv.
+
+Пример запуска:
 (venv) PS D:\...\port_inspector> python.exe main.py
 
+Возможные проблемы и советы
+
+Если MAC-таблица пустая, скрипт повторяет запрос до 100 раз (с задержкой) для учета задержек ASIC.
+Для аплинков с сотнями MAC используйте excluded_ports, чтобы избежать нагрузки.
+Логи сохраняются в port_inspector.log для отладки.
+
+Разработка и улучшения
+Проект открыт для доработок: добавление фильтров по VLAN, интеграция с системами мониторинга или расширение на другие вендоры. Контакт: [ваш email или GitHub].
