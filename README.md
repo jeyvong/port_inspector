@@ -13,7 +13,7 @@
 2. **VLAN**: Значение VLAN забирается из вывода `show mac address-table interface <port>` для каждого порта.
 3. **Port Description**: Извлекается из `show interfaces description`.
 4. **LLDP/CDP**: Для каждого порта запрашивается `show lldp neighbors <port> detail` или `show cdp neighbors <port> detail`. Из них извлекаются MAC, IP и System Name.
-5. **Fallback на MAC и ARP**: Если LLDP/CDP пустые, извлекается MAC из `show mac address-table interface <port>`. Затем скрипт подключается по SSH к core-устройству (ядро/роутер с ARP-таблицей) и запрашивает `show ip arp | include <mac_address>` для получения IP хоста.
+5. **Fallback на MAC и ARP**: Если LLDP/CDP пустые, извлекается MAC из `show mac address-table interface <port>`. Затем скрипт подключается по SSH к core-устройству (ядро/роутер с ARP-таблицей) и запрашивает `show ip arp | include <mac_address>` для получения IP хоста по каждому MAC адресу на порте.
 6. **Исключения**: В конфиге можно указать порты для исключения (например, аплинки с сотнями MAC), чтобы избежать лишних запросов. Укажите имя порта из `show interfaces status` или имя PortChannel.
 
 ## Конфигурация
@@ -65,4 +65,4 @@
 - Логи сохраняются в `port_inspector.log` для отладки.
 
 ## Разработка и улучшения
-Проект открыт для доработок: добавление фильтров по VLAN, интеграция с системами мониторинга или расширение на другие вендоры. Контакт: [ваш email или GitHub].
+Проект открыт для доработок: добавление фильтров по VLAN, интеграция с системами мониторинга или расширение на другие вендоры. Контакт: [ТГ @ev01123].
