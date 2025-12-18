@@ -16,11 +16,11 @@
   "core_switch": "192.168.1.1",
   "hostname": "-",
   "commands": [
-      "show mac address-table",
-      "show lldp neighbors detail",
-      "show cdp neighbors detail",
-      "show interfaces status",
-      "show interfaces description"
+  "show mac address-table",
+  "show lldp neighbors detail",
+  "show cdp neighbors detail",
+  "show interfaces status",
+  "show interfaces description"
   ],
   "excluded_ports": ["Po1","Te1/1/1","Te2/1/1"]
 }
